@@ -352,14 +352,25 @@ bot.command('setpremium', async (ctx) => {
   if (ctx.from.id !== ADMIN_ID) return;
 
   const args = ctx.message.text.split(' ');
-  if (args.length < 2) return ctx.reply('Uso: `/setpremium <ID_TELEGRAM>`', { parse_mode: 'Markdown' });
+  if (args.length < 2) return ctx.reply('🤔 Uso: `/setpremium @Usuario`', { parse_mode: 'Markdown' });
 
-  const targetId = args[1];
+  const input = args[1].replace('@', '');
+  
   try {
-    await setDoc(doc(db, 'users_tg', targetId), { role: 'premium' }, { merge: true });
-    ctx.reply(`✅ Usuario \`${targetId}\` ahora tiene acceso *PREMIUM*.`, { parse_mode: 'Markdown' });
+    const q = query(collection(db, 'users_tg'), where('username', '==', input));
+    const querySnapshot = await getDocs(q);
+
+    if (querySnapshot.empty) {
+      return ctx.reply(`❌ No encontré al usuario @${input} en mi base de datos. Pídele que inicie el bot primero.`);
+    }
+
+    const userDoc = querySnapshot.docs[0];
+    await setDoc(doc(db, 'users_tg', userDoc.id), { role: 'premium' }, { merge: true });
+
+    ctx.reply(`✅ Usuario @${input} (ID: \`${userDoc.id}\`) ahora tiene acceso *PREMIUM*.`, { parse_mode: 'Markdown' });
   } catch (e) {
-    ctx.reply('Error al actualizar permisos.');
+    console.error('Error en setpremium:', e);
+    ctx.reply('❌ Error al actualizar permisos.');
   }
 });
 
