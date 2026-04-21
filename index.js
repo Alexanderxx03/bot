@@ -195,12 +195,12 @@ const handleGen = async (ctx) => {
     return ctx.reply('⚠️ *Uso:* `.gen 447227` o `/gen 447227`', { parse_mode: 'Markdown' });
   }
 
-  const input = args[1];
+  const input = args[1].toUpperCase();
   const parts = input.split('|').map(p => p.trim());
   const bin = parts[0].replace(/\D/g, '');
-  const inputMes = parts[1] ? parts[1].padStart(2, '0') : null;
-  const inputYear = parts[2] ? (parts[2].length === 2 ? '20' + parts[2] : parts[2]) : null;
-  const inputCvv = parts[3] || null;
+  const inputMes = (parts[1] && parts[1] !== 'RND') ? parts[1].padStart(2, '0') : null;
+  const inputYear = (parts[2] && parts[2] !== 'RND') ? (parts[2].length === 2 ? '20' + parts[2] : parts[2]) : null;
+  const inputCvv = (parts[3] && parts[3] !== 'RND') ? parts[3] : null;
   const quantity = Math.min(parseInt(args[2]) || 10, 20);
 
   try {
@@ -268,9 +268,9 @@ bot.hears(/^\.gen (.+)$/, handleGen);
 bot.action(/^REGEN_(.+)_(.+)_(.+)_(.+)_(.+)$/, async (ctx) => {
   const bin = ctx.match[1];
   const quantity = parseInt(ctx.match[2]);
-  const inputMes = ctx.match[3] === 'x' ? null : ctx.match[3];
-  const inputYear = ctx.match[4] === 'x' ? null : ctx.match[4];
-  const inputCvv = ctx.match[5] === 'x' ? null : ctx.match[5];
+  const inputMes = (ctx.match[3] === 'x' || ctx.match[3].toUpperCase() === 'RND') ? null : ctx.match[3];
+  const inputYear = (ctx.match[4] === 'x' || ctx.match[4].toUpperCase() === 'RND') ? null : ctx.match[4];
+  const inputCvv = (ctx.match[5] === 'x' || ctx.match[5].toUpperCase() === 'RND') ? null : ctx.match[5];
   
   let lista = `〈キ〉 *Bin* » \`${bin.padEnd(16, 'x')}\`\n`;
   lista += `★───────────✩───────────★\n`;
