@@ -148,44 +148,45 @@ function generateLuhn(bin, length = 16) {
   return ccNumber + checkDigit;
 }
 
-// --- COMANDO /gen (GENERADOR VIP) ---
-bot.command('gen', async (ctx) => {
+// --- COMANDO /gen y .gen (GENERADOR VIP) ---
+const handleGen = async (ctx) => {
   const userId = ctx.from.id.toString();
-  const args = ctx.message.text.split(' ');
+  const text = ctx.message.text;
+  const args = text.split(' ');
 
   if (args.length < 2) {
-    return ctx.reply('⚠️ *Uso:* `/gen 447227`', { parse_mode: 'Markdown' });
+    return ctx.reply('⚠️ *Uso:* `.gen 447227` o `/gen 447227`', { parse_mode: 'Markdown' });
   }
 
   const bin = args[1].replace(/\D/g, '').substring(0, 6);
-  const quantity = Math.min(parseInt(args[2]) || 10, 20); // Máximo 20 por vez
+  const quantity = Math.min(parseInt(args[2]) || 10, 20);
 
   try {
     const userDoc = await getDoc(doc(db, 'users_tg', userId));
     const userData = userDoc.data();
 
     if (ctx.from.id !== ADMIN_ID && (!userData || userData.role !== 'premium')) {
-      return ctx.reply('🛑 *ACCESO DENEGADO*\n\nEsta herramienta es exclusiva para miembros del *Curso ELITE MASTER VIP*.', { parse_mode: 'Markdown' });
+      return ctx.reply('🛑 *ACCESO DENEGADO*\n\nEsta herramienta es exclusiva para miembros del *Curso ELITE MASTER VIP*.\n\n👤 *Tu ID:* `' + userId + '`', { parse_mode: 'Markdown' });
     }
 
-    const msg = await ctx.reply('🎰 *Generando números válidos...*', { parse_mode: 'Markdown' });
+    const msg = await ctx.reply('🔍 *Generando...*', { parse_mode: 'Markdown' });
 
-    // Consulta de Info del BIN para el pie de mensaje
-    let binInfo = { scheme: 'N/A', type: 'N/A', bank: 'N/A', country: 'N/A' };
+    let binInfo = { scheme: 'N/A', type: 'N/A', bank: 'N/A', country: 'N/A', flag: '🏳️' };
     try {
       const response = await axios.get(`https://data.handyapi.com/bin/${bin}`);
       if (response.data.Status === 'SUCCESS') {
         binInfo = {
           scheme: response.data.Scheme,
           type: response.data.Type,
+          tier: response.data.CardTier,
           bank: response.data.Issuer,
-          country: `${response.data.Country.Name} ${response.data.Country.Code || ''}`
+          country: response.data.Country.Name,
+          flag: response.data.Country.Code || '🏳️'
         };
       }
-    } catch (e) { console.log('Error bin info en gen:', e.message); }
+    } catch (e) {}
 
-    // Generación de la lista
-    let lista = `〈 ⚡ 〉 *Bin* -> \`${bin}xxxxxxxxxxxx\`\n`;
+    let lista = `〈キ〉 *Bin* » \`${bin}xxxxxxxxxxxx\`\n`;
     lista += `★───────────✩───────────★\n`;
 
     for (let i = 0; i < quantity; i++) {
@@ -197,11 +198,11 @@ bot.command('gen', async (ctx) => {
     }
 
     lista += `★───────────✩───────────★\n`;
-    lista += `〈 💎 〉 *Info* -> ${binInfo.scheme} - ${binInfo.type}\n`;
-    lista += `〈 🏦 〉 *Bank* -> ${binInfo.bank}\n`;
-    lista += `〈 🗺️ 〉 *Country* -> ${binInfo.country}\n`;
+    lista += `〈キ〉 *Info* » ${binInfo.scheme} - ${binInfo.type} - ${binInfo.tier || 'N/A'}\n`;
+    lista += `〈キ〉 *Bank* » ${binInfo.bank}\n`;
+    lista += `〈キ〉 *Country* » ${binInfo.country} ${binInfo.flag}\n`;
     lista += `★───────────✩───────────★\n`;
-    lista += `〈 👤 〉 *Gen by* -> ${ctx.from.first_name}\n`;
+    lista += `〈キ〉 *Gen by* » ${ctx.from.first_name} » User\n`;
 
     await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, lista, { 
       parse_mode: 'Markdown',
@@ -211,18 +212,20 @@ bot.command('gen', async (ctx) => {
     });
 
   } catch (e) {
-    console.error('Error en /gen:', e);
-    ctx.reply('❌ Error al generar números.');
+    console.error('Error en gen:', e);
+    ctx.reply('❌ Error al generar.');
   }
-});
+};
+
+bot.command('gen', handleGen);
+bot.hears(/^\.gen (.+)$/, handleGen);
 
 // Acción de Re-Generar
 bot.action(/^REGEN_(.+)_(.+)$/, async (ctx) => {
   const bin = ctx.match[1];
   const quantity = parseInt(ctx.match[2]);
   
-  // Re-ejecutar la lógica de generación (simplificada para el edit)
-  let lista = `〈 ⚡ 〉 *Bin* -> \`${bin}xxxxxxxxxxxx\`\n`;
+  let lista = `〈キ〉 *Bin* » \`${bin}xxxxxxxxxxxx\`\n`;
   lista += `★───────────✩───────────★\n`;
   for (let i = 0; i < quantity; i++) {
     const cc = generateLuhn(bin);
@@ -244,56 +247,55 @@ bot.action(/^REGEN_(.+)_(.+)$/, async (ctx) => {
   } catch(e) {}
 });
 
-// --- COMANDO /bin (EXCLUSIVO) ---
-bot.command('bin', async (ctx) => {
+// --- COMANDO /bin y .bin (EXCLUSIVO) ---
+const handleBin = async (ctx) => {
   const userId = ctx.from.id.toString();
-  const args = ctx.message.text.split(' ');
+  const text = ctx.message.text;
+  const args = text.split(' ');
   
   if (args.length < 2) {
-    return ctx.reply('⚠️ *Uso:* `/bin 454023`', { parse_mode: 'Markdown' });
+    return ctx.reply('⚠️ *Uso:* `.bin 454023`', { parse_mode: 'Markdown' });
   }
 
   const bin = args[1].substring(0, 6);
   
-  // Verificación de Acceso (Admin o Premium en Firestore)
   try {
     const userDoc = await getDoc(doc(db, 'users_tg', userId));
     const userData = userDoc.data();
     
     if (ctx.from.id !== ADMIN_ID && (!userData || userData.role !== 'premium')) {
-      return ctx.reply('🛑 *ACCESO DENEGADO*\n\nEsta herramienta es exclusiva para miembros del *Curso ELITE MASTER VIP*.', { parse_mode: 'Markdown' });
+      return ctx.reply('🛑 *ACCESO DENEGADO*\n\nEsta herramienta es exclusiva para miembros del *Curso ELITE MASTER VIP*.\n\n👤 *Tu ID:* `' + userId + '`', { parse_mode: 'Markdown' });
     }
 
-    const msg = await ctx.reply('🔍 *Consultando base de datos global...*', { parse_mode: 'Markdown' });
+    const msg = await ctx.reply('🔍 *Consultando...*', { parse_mode: 'Markdown' });
 
-    // Consulta a la API
     const response = await axios.get(`https://data.handyapi.com/bin/${bin}`);
     const data = response.data;
 
     if (data.Status !== 'SUCCESS') {
-      return ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, '❌ *BIN NO ENCONTRADO* o inválido.', { parse_mode: 'Markdown' });
+      return ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, '❌ *BIN NO ENCONTRADO*', { parse_mode: 'Markdown' });
     }
 
-    const countryFlag = data.Country.Code ? `https://flagcdn.com/24x18/${data.Country.Code.toLowerCase()}.png` : '🗺️';
-    
     let result = `💎 *ELITE MASTER - BIN CHECKER* 💎\n`;
-    result += `━━━━━━━━━━━━━━━\n`;
-    result += `🔢 *BIN:* \`${bin}\`\n`;
-    result += `💳 *MARCA:* ${data.Scheme || 'N/A'}\n`;
-    result += `🛡️ *TIPO:* ${data.Type || 'N/A'}\n`;
-    result += `🏆 *NIVEL:* ${data.CardTier || 'N/A'}\n`;
-    result += `🏦 *BANCO:* ${data.Issuer || 'N/A'}\n`;
-    result += `🗺️ *PAÍS:* ${data.Country.Name || 'N/A'} ${data.Country.Code || ''}\n`;
-    result += `━━━━━━━━━━━━━━━\n`;
+    result += `★───────────✩───────────★\n`;
+    result += `〈キ〉 *Bin* » \`${bin}\`\n`;
+    result += `〈キ〉 *Info* » ${data.Scheme} - ${data.Type} - ${data.CardTier || 'N/A'}\n`;
+    result += `〈キ〉 *Bank* » ${data.Issuer}\n`;
+    result += `〈キ〉 *Country* » ${data.Country.Name} ${data.Country.Code || ''}\n`;
+    result += `★───────────✩───────────★\n`;
     result += `🖥️ *Powered by Alex VIP*`;
 
     await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, result, { parse_mode: 'Markdown' });
 
   } catch (e) {
-    console.error('Error en /bin:', e);
-    ctx.reply('❌ Error interno al realizar la consulta.');
+    console.error('Error en bin:', e);
+    ctx.reply('❌ Error interno.');
   }
-});
+};
+
+bot.command('bin', handleBin);
+bot.hears(/^\.bin (.+)$/, handleBin);
+
 
 // --- COMANDO PARA DAR PREMIUM (SOLO ADMIN) ---
 bot.command('setpremium', async (ctx) => {
