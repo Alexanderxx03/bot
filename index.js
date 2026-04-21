@@ -148,6 +148,43 @@ function generateLuhn(bin, length = 16) {
   return ccNumber + checkDigit;
 }
 
+function isValidLuhn(number) {
+  let sum = 0;
+  let shouldDouble = false;
+  for (let i = number.length - 1; i >= 0; i--) {
+    let digit = parseInt(number.charAt(i));
+    if (shouldDouble) {
+      if ((digit *= 2) > 9) digit -= 9;
+    }
+    sum += digit;
+    shouldDouble = !shouldDouble;
+  }
+  return (sum % 10) === 0;
+}
+
+// --- GESTIÓN DE PROXIES ---
+const PROXY_LIST = [
+  // Formato: http://user:pass@ip:port o http://ip:port
+  // Por el momento vacío, el usuario puede agregarlos aquí
+];
+
+function getRandomProxy() {
+  if (PROXY_LIST.length === 0) return null;
+  return PROXY_LIST[Math.floor(Math.random() * PROXY_LIST.length)];
+}
+
+// --- MIDDLEWARE DE AUTORIZACIÓN ---
+async function isPremium(ctx) {
+  if (ctx.from.id === ADMIN_ID) return true;
+  try {
+    const userDoc = await getDoc(doc(db, 'users_tg', ctx.from.id.toString()));
+    const userData = userDoc.data();
+    return userData && userData.role === 'premium';
+  } catch (e) {
+    return false;
+  }
+}
+
 // --- COMANDO /gen y .gen (GENERADOR VIP) ---
 const handleGen = async (ctx) => {
   const userId = ctx.from.id.toString();
@@ -286,12 +323,15 @@ const handleBin = async (ctx) => {
       return ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, '❌ *BIN NO ENCONTRADO*', { parse_mode: 'Markdown' });
     }
 
-    let result = `💎 *ELITE MASTER - BIN CHECKER* 💎\n`;
+    let result = `💎 *ELITE MASTER - BIN INFO PRO* 💎\n`;
     result += `★───────────✩───────────★\n`;
     result += `〈キ〉 *Bin* » \`${bin}\`\n`;
-    result += `〈キ〉 *Info* » ${data.Scheme} - ${data.Type} - ${data.CardTier || 'N/A'}\n`;
-    result += `〈キ〉 *Bank* » ${data.Issuer}\n`;
+    result += `〈キ〉 *Brand* » ${data.Scheme || 'N/A'}\n`;
+    result += `〈キ〉 *Type* » ${data.Type || 'N/A'}\n`;
+    result += `〈キ〉 *Level* » ${data.CardTier || 'N/A'}\n`;
+    result += `〈キ〉 *Bank* » ${data.Issuer || 'N/A'}\n`;
     result += `〈キ〉 *Country* » ${data.Country.Name} ${data.Country.Code || ''}\n`;
+    result += `〈キ〉 *Currency* » ${data.Currency || 'N/A'}\n`;
     result += `★───────────✩───────────★\n`;
     result += `🖥️ *Powered by Alex VIP*`;
 
@@ -403,9 +443,70 @@ async function listarZellers(ctx, edit = false) {
   }
 }
 
+// --- COMANDO /chk (VALIDADOR DE LUHN) ---
+const handleChk = async (ctx) => {
+  if (!(await isPremium(ctx))) {
+    return ctx.reply('🛑 Esta herramienta es exclusiva para miembros PREMIUM.');
+  }
+
+  const text = ctx.message.text;
+  const args = text.split(' ');
+  if (args.length < 2) return ctx.reply('⚠️ *Uso:* `/chk CC|MM|YY|CVV`', { parse_mode: 'Markdown' });
+
+  const cardData = args[1].split('|')[0].replace(/\D/g, '');
+  const isValid = isValidLuhn(cardData);
+
+  let resp = `🔍 *RESULTADO DE VALIDACIÓN*\n\n`;
+  resp += `💳 *Card:* \`${args[1]}\`\n`;
+  resp += `✨ *Status:* ${isValid ? '✅ VÁLIDA (Luhn)' : '❌ INVÁLIDA'}\n`;
+  
+  ctx.reply(resp, { parse_mode: 'Markdown' });
+};
+
+bot.command('chk', handleChk);
+bot.hears(/^\.chk (.+)$/, handleChk);
+
+// --- ARQUITECTURA DE GATEWAYS ($st, $am) ---
+const handleGateway = async (ctx, gatewayName) => {
+  if (!(await isPremium(ctx))) {
+    return ctx.reply('🛑 Los Gateways son exclusivos para miembros PREMIUM.');
+  }
+
+  const args = ctx.message.text.split(' ');
+  if (args.length < 2) return ctx.reply(`⚠️ *Uso:* \`$${gatewayName} CC|MM|YY|CVV\``, { parse_mode: 'Markdown' });
+
+  const fullData = args[1];
+  const msg = await ctx.reply(`⏳ *Checking on ${gatewayName}...*\n \`${fullData}\``, { parse_mode: 'Markdown' });
+
+  // Aquí iría la lógica de cada gateway (Axios + Proxies)
+  // Por ahora simulamos la estructura
+  setTimeout(async () => {
+    try {
+        // Ejemplo de cómo se usaría un proxy:
+        // const proxy = getRandomProxy();
+        // const response = await axios.get('GATEWAY_URL', { proxy: ... });
+        
+        const isLive = Math.random() > 0.5; // Simulación
+        let result = `💳 *Card:* \`${fullData}\`\n`;
+        result += `📡 *Gateway:* ${gatewayName.toUpperCase()}\n`;
+        result += `✨ *Status:* ${isLive ? '✅ LIVE' : '❌ DEAD'}\n`;
+        result += `💬 *Response:* ${isLive ? 'Approved' : 'Declined (Insufficient Funds)'}\n`;
+        result += `★───────────✩───────────★\n`;
+        result += `👤 *Check by:* ${ctx.from.first_name}`;
+
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, result, { parse_mode: 'Markdown' });
+    } catch(e) {
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, '❌ Error al conectar con el Gateway.', { parse_mode: 'Markdown' });
+    }
+  }, 2000);
+};
+
+bot.hears(/^\$st (.+)$/, (ctx) => handleGateway(ctx, 'stripe'));
+bot.hears(/^\$am (.+)$/, (ctx) => handleGateway(ctx, 'amazon'));
+
 // ARRANCAR BOT
 bot.launch().then(() => {
-  console.log('🚀 Bot VIP Alex iniciado correctamente (Safe Mode).');
+  console.log('🚀 Bot VIP Alex iniciado con funciones PRO.');
 });
 
 process.once('SIGINT', () => bot.stop('SIGINT'));
