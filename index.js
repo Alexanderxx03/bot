@@ -1,8 +1,9 @@
 require('dotenv').config();
 const { Telegraf, Markup } = require('telegraf');
 const { initializeApp } = require('firebase/app');
-const { getFirestore, collection, addDoc, getDocs, doc, setDoc, query, where, serverTimestamp } = require('firebase/firestore');
+const { getFirestore, collection, addDoc, getDocs, doc, setDoc, getDoc, query, where, serverTimestamp } = require('firebase/firestore');
 const express = require('express');
+const axios = require('axios');
 
 // --- CONFIGURACIÓN DEL SERVIDOR WEB (Para Render/Pings) ---
 const appExpress = express();
@@ -120,6 +121,73 @@ bot.command('addzeller', async (ctx) => {
   } catch (e) {
     console.error('Error al agregar zeller:', e);
     ctx.reply('❌ Error al conectar con la base de datos.');
+  }
+});
+
+// --- COMANDO /bin (EXCLUSIVO) ---
+bot.command('bin', async (ctx) => {
+  const userId = ctx.from.id.toString();
+  const args = ctx.message.text.split(' ');
+  
+  if (args.length < 2) {
+    return ctx.reply('⚠️ *Uso:* `/bin 454023`', { parse_mode: 'Markdown' });
+  }
+
+  const bin = args[1].substring(0, 6);
+  
+  // Verificación de Acceso (Admin o Premium en Firestore)
+  try {
+    const userDoc = await getDoc(doc(db, 'users_tg', userId));
+    const userData = userDoc.data();
+    
+    if (ctx.from.id !== ADMIN_ID && (!userData || userData.role !== 'premium')) {
+      return ctx.reply('🛑 *ACCESO DENEGADO*\n\nEsta herramienta es exclusiva para miembros del *Curso ELITE MASTER VIP*.', { parse_mode: 'Markdown' });
+    }
+
+    const msg = await ctx.reply('🔍 *Consultando base de datos global...*', { parse_mode: 'Markdown' });
+
+    // Consulta a la API
+    const response = await axios.get(`https://data.handyapi.com/bin/${bin}`);
+    const data = response.data;
+
+    if (data.Status !== 'SUCCESS') {
+      return ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, '❌ *BIN NO ENCONTRADO* o inválido.', { parse_mode: 'Markdown' });
+    }
+
+    const countryFlag = data.Country.Code ? `https://flagcdn.com/24x18/${data.Country.Code.toLowerCase()}.png` : '🗺️';
+    
+    let result = `💎 *ELITE MASTER - BIN CHECKER* 💎\n`;
+    result += `━━━━━━━━━━━━━━━\n`;
+    result += `🔢 *BIN:* \`${bin}\`\n`;
+    result += `💳 *MARCA:* ${data.Scheme || 'N/A'}\n`;
+    result += `🛡️ *TIPO:* ${data.Type || 'N/A'}\n`;
+    result += `🏆 *NIVEL:* ${data.CardTier || 'N/A'}\n`;
+    result += `🏦 *BANCO:* ${data.Issuer || 'N/A'}\n`;
+    result += `🗺️ *PAÍS:* ${data.Country.Name || 'N/A'} ${data.Country.Code || ''}\n`;
+    result += `━━━━━━━━━━━━━━━\n`;
+    result += `🖥️ *Powered by Alex VIP*`;
+
+    await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, result, { parse_mode: 'Markdown' });
+
+  } catch (e) {
+    console.error('Error en /bin:', e);
+    ctx.reply('❌ Error interno al realizar la consulta.');
+  }
+});
+
+// --- COMANDO PARA DAR PREMIUM (SOLO ADMIN) ---
+bot.command('setpremium', async (ctx) => {
+  if (ctx.from.id !== ADMIN_ID) return;
+
+  const args = ctx.message.text.split(' ');
+  if (args.length < 2) return ctx.reply('Uso: `/setpremium <ID_TELEGRAM>`', { parse_mode: 'Markdown' });
+
+  const targetId = args[1];
+  try {
+    await setDoc(doc(db, 'users_tg', targetId), { role: 'premium' }, { merge: true });
+    ctx.reply(`✅ Usuario \`${targetId}\` ahora tiene acceso *PREMIUM*.`, { parse_mode: 'Markdown' });
+  } catch (e) {
+    ctx.reply('Error al actualizar permisos.');
   }
 });
 
