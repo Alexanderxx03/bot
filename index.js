@@ -158,7 +158,12 @@ const handleGen = async (ctx) => {
     return ctx.reply('⚠️ *Uso:* `.gen 447227` o `/gen 447227`', { parse_mode: 'Markdown' });
   }
 
-  const bin = args[1].replace(/\D/g, '').substring(0, 6);
+  const input = args[1];
+  const parts = input.split('|').map(p => p.trim());
+  const bin = parts[0].replace(/\D/g, '');
+  const inputMes = parts[1] ? parts[1].padStart(2, '0') : null;
+  const inputYear = parts[2] ? (parts[2].length === 2 ? '20' + parts[2] : parts[2]) : null;
+  const inputCvv = parts[3] || null;
   const quantity = Math.min(parseInt(args[2]) || 10, 20);
 
   try {
@@ -186,14 +191,14 @@ const handleGen = async (ctx) => {
       }
     } catch (e) {}
 
-    let lista = `〈キ〉 *Bin* » \`${bin}xxxxxxxxxxxx\`\n`;
+    let lista = `〈キ〉 *Bin* » \`${bin.padEnd(16, 'x')}\`\n`;
     lista += `★───────────✩───────────★\n`;
 
     for (let i = 0; i < quantity; i++) {
       const cc = generateLuhn(bin);
-      const mm = Math.floor(Math.random() * 12 + 1).toString().padStart(2, '0');
-      const yy = Math.floor(Math.random() * (2031 - 2025) + 2025);
-      const cvv = Math.floor(Math.random() * 899 + 100);
+      const mm = inputMes || Math.floor(Math.random() * 12 + 1).toString().padStart(2, '0');
+      const yy = inputYear || Math.floor(Math.random() * (2031 - 2025) + 2025);
+      const cvv = inputCvv || Math.floor(Math.random() * 899 + 100);
       lista += `\`${cc}|${mm}|${yy}|${cvv}\`\n`;
     }
 
@@ -204,10 +209,12 @@ const handleGen = async (ctx) => {
     lista += `★───────────✩───────────★\n`;
     lista += `〈キ〉 *Gen by* » ${ctx.from.first_name} » User\n`;
 
+    const callbackData = `REGEN_${bin}_${quantity}_${inputMes || 'x'}_${inputYear || 'x'}_${inputCvv || 'x'}`;
+
     await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, lista, { 
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
-        [Markup.button.callback('🔄 Re-Gen', `REGEN_${bin}_${quantity}`)]
+        [Markup.button.callback('🔄 Re-Gen', callbackData)]
       ])
     });
 
@@ -221,17 +228,20 @@ bot.command('gen', handleGen);
 bot.hears(/^\.gen (.+)$/, handleGen);
 
 // Acción de Re-Generar
-bot.action(/^REGEN_(.+)_(.+)$/, async (ctx) => {
+bot.action(/^REGEN_(.+)_(.+)_(.+)_(.+)_(.+)$/, async (ctx) => {
   const bin = ctx.match[1];
   const quantity = parseInt(ctx.match[2]);
+  const inputMes = ctx.match[3] === 'x' ? null : ctx.match[3];
+  const inputYear = ctx.match[4] === 'x' ? null : ctx.match[4];
+  const inputCvv = ctx.match[5] === 'x' ? null : ctx.match[5];
   
-  let lista = `〈キ〉 *Bin* » \`${bin}xxxxxxxxxxxx\`\n`;
+  let lista = `〈キ〉 *Bin* » \`${bin.padEnd(16, 'x')}\`\n`;
   lista += `★───────────✩───────────★\n`;
   for (let i = 0; i < quantity; i++) {
     const cc = generateLuhn(bin);
-    const mm = Math.floor(Math.random() * 12 + 1).toString().padStart(2, '0');
-    const yy = Math.floor(Math.random() * (2031 - 2025) + 2025);
-    const cvv = Math.floor(Math.random() * 899 + 100);
+    const mm = inputMes || Math.floor(Math.random() * 12 + 1).toString().padStart(2, '0');
+    const yy = inputYear || Math.floor(Math.random() * (2031 - 2025) + 2025);
+    const cvv = inputCvv || Math.floor(Math.random() * 899 + 100);
     lista += `\`${cc}|${mm}|${yy}|${cvv}\`\n`;
   }
   lista += `★───────────✩───────────★\n`;
@@ -241,7 +251,7 @@ bot.action(/^REGEN_(.+)_(.+)$/, async (ctx) => {
     await ctx.editMessageText(lista, {
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
-        [Markup.button.callback('🔄 Re-Gen', `REGEN_${bin}_${quantity}`)]
+        [Markup.button.callback('🔄 Re-Gen', ctx.match[0])]
       ])
     });
   } catch(e) {}
