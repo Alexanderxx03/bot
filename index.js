@@ -140,10 +140,17 @@ async function getSignature(ctx) {
   } catch (e) {}
 
   let footer = `\n${SEPARATOR}\n`;
-  footer += `👤 *Req By:* ${ctx.from.first_name} » \`${role}\`\n`;
+  footer += `👤 *Req By:* [${ctx.from.first_name}](tg://user?id=${ctx.from.id}) » \`${role}\`\n`;
   footer += `${SEPARATOR}\n`;
   footer += `☁️ *Bot Version:* ${BOT_VERSION} ⛈️`;
   return footer;
+}
+
+function getFlagEmoji(countryCode) {
+  if (!countryCode || countryCode.length !== 2) return '🏳️';
+  return countryCode
+    .toUpperCase()
+    .replace(/./g, char => String.fromCodePoint(127397 + char.charCodeAt()));
 }
 
 function generateLuhn(bin, length = 16) {
@@ -265,7 +272,7 @@ const handleGen = async (ctx) => {
     lista += `${SEPARATOR}\n`;
     lista += `➤ *Info:* ${binInfo.scheme} - ${binInfo.type} - ${binInfo.tier || 'N/A'}\n`;
     lista += `➤ *Issuer:* ${binInfo.bank}\n`;
-    lista += `➤ *Country:* ${binInfo.country} ${binInfo.flag}\n`;
+    lista += `➤ *Country:* ${binInfo.country} ${getFlagEmoji(binInfo.flag)}\n`;
     
     lista += await getSignature(ctx);
 
@@ -359,7 +366,7 @@ const handleBin = async (ctx) => {
     result += `➤ *Type:* ${data.Type || 'N/A'}\n`;
     result += `➤ *Level:* ${data.CardTier || 'N/A'}\n`;
     result += `➤ *Bank:* ${data.Issuer || 'N/A'}\n`;
-    result += `➤ *Country:* ${data.Country.Name} ${data.Country.Code || ''}\n`;
+    result += `➤ *Country:* ${data.Country.Name} ${getFlagEmoji(data.Country.Code)}\n`;
     result += `➤ *Currency:* ${data.Currency || 'N/A'}\n`;
     
     result += await getSignature(ctx);
