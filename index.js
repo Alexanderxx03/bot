@@ -124,7 +124,28 @@ bot.command('addzeller', async (ctx) => {
   }
 });
 
-// --- UTILIDADES MATEMÁTICAS (ALGORITMO DE LUHN) ---
+// --- CONFIGURACIÓN VISUAL (ESTILO KAORI) ---
+const SEPARATOR = '━━━━━━━━━━━━━━━━━━━━';
+const BOT_VERSION = '1.0';
+const OWNER_HANDLE = '@Aleeeeeack';
+
+async function getSignature(ctx) {
+  let role = 'FREE';
+  try {
+    const userDoc = await getDoc(doc(db, 'users_tg', ctx.from.id.toString()));
+    const userData = userDoc.data();
+    if (ctx.from.id === ADMIN_ID || (userData && userData.role === 'premium')) {
+      role = 'PREMIUM';
+    }
+  } catch (e) {}
+
+  let footer = `\n${SEPARATOR}\n`;
+  footer += `👤 *Req By:* ${ctx.from.first_name} » \`${role}\`\n`;
+  footer += `${SEPARATOR}\n`;
+  footer += `☁️ *Bot Version:* ${BOT_VERSION} ⛈️`;
+  return footer;
+}
+
 function generateLuhn(bin, length = 16) {
   let ccNumber = bin;
   
@@ -228,8 +249,10 @@ const handleGen = async (ctx) => {
       }
     } catch (e) {}
 
-    let lista = `〈キ〉 *Bin* » \`${bin.padEnd(16, 'x')}\`\n`;
-    lista += `★───────────✩───────────★\n`;
+    let lista = `#Bot VIP Alex ⚡ | CC Generator\n`;
+    lista += `${SEPARATOR}\n`;
+    lista += `*Format:* \`${bin}|xx|xx|xxx\`\n`;
+    lista += `${SEPARATOR}\n`;
 
     for (let i = 0; i < quantity; i++) {
       const cc = generateLuhn(bin);
@@ -239,19 +262,22 @@ const handleGen = async (ctx) => {
       lista += `\`${cc}|${mm}|${yy}|${cvv}\`\n`;
     }
 
-    lista += `★───────────✩───────────★\n`;
-    lista += `〈キ〉 *Info* » ${binInfo.scheme} - ${binInfo.type} - ${binInfo.tier || 'N/A'}\n`;
-    lista += `〈キ〉 *Bank* » ${binInfo.bank}\n`;
-    lista += `〈キ〉 *Country* » ${binInfo.country} ${binInfo.flag}\n`;
-    lista += `★───────────✩───────────★\n`;
-    lista += `〈キ〉 *Gen by* » ${ctx.from.first_name} » User\n`;
+    lista += `${SEPARATOR}\n`;
+    lista += `➤ *Info:* ${binInfo.scheme} - ${binInfo.type} - ${binInfo.tier || 'N/A'}\n`;
+    lista += `➤ *Issuer:* ${binInfo.bank}\n`;
+    lista += `➤ *Country:* ${binInfo.country} ${binInfo.flag}\n`;
+    
+    lista += await getSignature(ctx);
 
     const callbackData = `REGEN_${bin}_${quantity}_${inputMes || 'x'}_${inputYear || 'x'}_${inputCvv || 'x'}`;
 
     await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, lista, { 
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
-        [Markup.button.callback('🔄 Re-Gen', callbackData)]
+        [
+          Markup.button.callback('⚙️ Re-Gen', callbackData),
+          Markup.button.url('!! Updates', `https://t.me/${OWNER_HANDLE.replace('@', '')}`)
+        ]
       ])
     });
 
@@ -272,8 +298,8 @@ bot.action(/^REGEN_(.+)_(.+)_(.+)_(.+)_(.+)$/, async (ctx) => {
   const inputYear = (ctx.match[4] === 'x' || ctx.match[4].toUpperCase() === 'RND') ? null : ctx.match[4];
   const inputCvv = (ctx.match[5] === 'x' || ctx.match[5].toUpperCase() === 'RND') ? null : ctx.match[5];
   
-  let lista = `〈キ〉 *Bin* » \`${bin.padEnd(16, 'x')}\`\n`;
-  lista += `★───────────✩───────────★\n`;
+  let lista = `#Bot VIP Alex ⚡ | RE-GEN\n`;
+  lista += `${SEPARATOR}\n`;
   for (let i = 0; i < quantity; i++) {
     const cc = generateLuhn(bin);
     const mm = inputMes || Math.floor(Math.random() * 12 + 1).toString().padStart(2, '0');
@@ -281,14 +307,17 @@ bot.action(/^REGEN_(.+)_(.+)_(.+)_(.+)_(.+)$/, async (ctx) => {
     const cvv = inputCvv || Math.floor(Math.random() * 899 + 100);
     lista += `\`${cc}|${mm}|${yy}|${cvv}\`\n`;
   }
-  lista += `★───────────✩───────────★\n`;
-  lista += `*🔄 Re-generado*\n`;
+  
+  lista += await getSignature(ctx);
 
   try {
     await ctx.editMessageText(lista, {
       parse_mode: 'Markdown',
       ...Markup.inlineKeyboard([
-        [Markup.button.callback('🔄 Re-Gen', ctx.match[0])]
+        [
+          Markup.button.callback('⚙️ Re-Gen', ctx.match[0]),
+          Markup.button.url('!! Updates', `https://t.me/${OWNER_HANDLE.replace('@', '')}`)
+        ]
       ])
     });
   } catch(e) {}
@@ -323,19 +352,24 @@ const handleBin = async (ctx) => {
       return ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, '❌ *BIN NO ENCONTRADO*', { parse_mode: 'Markdown' });
     }
 
-    let result = `💎 *ELITE MASTER - BIN INFO PRO* 💎\n`;
-    result += `★───────────✩───────────★\n`;
-    result += `〈キ〉 *Bin* » \`${bin}\`\n`;
-    result += `〈キ〉 *Brand* » ${data.Scheme || 'N/A'}\n`;
-    result += `〈キ〉 *Type* » ${data.Type || 'N/A'}\n`;
-    result += `〈キ〉 *Level* » ${data.CardTier || 'N/A'}\n`;
-    result += `〈キ〉 *Bank* » ${data.Issuer || 'N/A'}\n`;
-    result += `〈キ〉 *Country* » ${data.Country.Name} ${data.Country.Code || ''}\n`;
-    result += `〈キ〉 *Currency* » ${data.Currency || 'N/A'}\n`;
-    result += `★───────────✩───────────★\n`;
-    result += `🖥️ *Powered by Alex VIP*`;
+    let result = `#Bot VIP Alex ⚡ | BIN INFO\n`;
+    result += `${SEPARATOR}\n`;
+    result += `➤ *Bin:* \`${bin}\`\n`;
+    result += `➤ *Brand:* ${data.Scheme || 'N/A'}\n`;
+    result += `➤ *Type:* ${data.Type || 'N/A'}\n`;
+    result += `➤ *Level:* ${data.CardTier || 'N/A'}\n`;
+    result += `➤ *Bank:* ${data.Issuer || 'N/A'}\n`;
+    result += `➤ *Country:* ${data.Country.Name} ${data.Country.Code || ''}\n`;
+    result += `➤ *Currency:* ${data.Currency || 'N/A'}\n`;
+    
+    result += await getSignature(ctx);
 
-    await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, result, { parse_mode: 'Markdown' });
+    await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, result, { 
+        parse_mode: 'Markdown',
+        ...Markup.inlineKeyboard([
+            [Markup.button.url('!! Updates', `https://t.me/${OWNER_HANDLE.replace('@', '')}`)]
+        ])
+    });
 
   } catch (e) {
     console.error('Error en bin:', e);
@@ -392,6 +426,7 @@ bot.action('VOLVER_INICIO', (ctx) => {
     parse_mode: 'Markdown',
     ...Markup.inlineKeyboard([
       [Markup.button.callback('⭐ Ver Curso Elite VIP', 'VER_PLAN')],
+      [Markup.button.callback('🚀 Gateways Pro', 'VER_GATES')],
       [Markup.button.callback('👥 Ver Vendedores (Zellers)', 'LISTAR_ZELLERS')],
       [Markup.button.callback('💙 Métodos de Pago', 'VER_PAGOS')]
     ])
@@ -467,17 +502,72 @@ const handleChk = async (ctx) => {
   const cardData = args[1].split('|')[0].replace(/\D/g, '');
   const isValid = isValidLuhn(cardData);
 
-  let resp = `🔍 *RESULTADO DE VALIDACIÓN*\n\n`;
+  let resp = `#Bot VIP Alex ⚡ | LUHN CHK\n`;
+  resp += `${SEPARATOR}\n`;
   resp += `💳 *Card:* \`${args[1]}\`\n`;
   resp += `✨ *Status:* ${isValid ? '✅ VÁLIDA (Luhn)' : '❌ INVÁLIDA'}\n`;
   
-  ctx.reply(resp, { parse_mode: 'Markdown' });
+  resp += await getSignature(ctx);
+
+  ctx.reply(resp, { 
+    parse_mode: 'Markdown',
+    ...Markup.inlineKeyboard([ [Markup.button.url('!! Updates', `https://t.me/${OWNER_HANDLE.replace('@', '')}`)] ])
+  });
 };
 
 bot.command('chk', handleChk);
 bot.hears(/^\.chk (.+)$/, handleChk);
 
-// --- ARQUITECTURA DE GATEWAYS ($st, $am) ---
+// --- MENÚ DE GATEWAYS (/gates) ---
+async function mostrarGateways(ctx, edit = false) {
+  if (!(await isPremium(ctx))) {
+    return ctx.reply(`🛑 *ACCESO DENEGADO*\n\n${SEPARATOR}\nLos Gateways son exclusivos para miembros del *Curso ELITE MASTER VIP*.\n\n👤 *Owner:* ${OWNER_HANDLE}`, { parse_mode: 'Markdown' });
+  }
+
+  const mensaje = `#Bot VIP Alex ⚡ | GATEWAYS MENU\n${SEPARATOR}\nSelecciona una categoría para ver los checkers disponibles:`;
+  const extra = {
+    parse_mode: 'Markdown',
+    ...Markup.inlineKeyboard([
+      [Markup.button.callback('💳 Gateways Auth', 'GATES_AUTH')],
+      [Markup.button.callback('💰 Gateways Charge', 'GATES_CHARGE')],
+      [Markup.button.callback('◀️ Volver', 'VOLVER_INICIO')]
+    ])
+  };
+
+  if (edit) {
+    try { await ctx.editMessageText(mensaje, extra); } catch(e) {}
+  } else {
+    ctx.reply(mensaje, extra);
+  }
+}
+
+bot.command('gates', (ctx) => mostrarGateways(ctx));
+bot.action('VER_GATES', (ctx) => mostrarGateways(ctx, true));
+
+bot.action('GATES_AUTH', async (ctx) => {
+  const mensaje = `#Bot VIP Alex ⚡ | AUTH GATEWAYS\n${SEPARATOR}\n` +
+    `$st - Stripe Auth\n` +
+    `$am - Amazon Pay\n` +
+    `$bt - Braintree Auth\n\n` +
+    `*Uso:* \`$st CC|MM|YY|CVV\``;
+  
+  ctx.editMessageText(mensaje, {
+    parse_mode: 'Markdown',
+    ...Markup.inlineKeyboard([ [Markup.button.callback('◀️ Volver', 'VER_GATES')] ])
+  });
+});
+
+bot.action('GATES_CHARGE', async (ctx) => {
+    const mensaje = `#Bot VIP Alex ⚡ | CHARGE GATEWAYS\n${SEPARATOR}\n` +
+      `Próximamente...`;
+    
+    ctx.editMessageText(mensaje, {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([ [Markup.button.callback('◀️ Volver', 'VER_GATES')] ])
+    });
+  });
+
+// --- ARQUITECTURA DE GATEWAYS ($st, $am, $bt) ---
 const handleGateway = async (ctx, gatewayName) => {
   if (!(await isPremium(ctx))) {
     return ctx.reply('🛑 Los Gateways son exclusivos para miembros PREMIUM.');
@@ -487,25 +577,25 @@ const handleGateway = async (ctx, gatewayName) => {
   if (args.length < 2) return ctx.reply(`⚠️ *Uso:* \`$${gatewayName} CC|MM|YY|CVV\``, { parse_mode: 'Markdown' });
 
   const fullData = args[1];
-  const msg = await ctx.reply(`⏳ *Checking on ${gatewayName}...*\n \`${fullData}\``, { parse_mode: 'Markdown' });
+  const msg = await ctx.reply(`⏳ *Checking on ${gatewayName.toUpperCase()}...*\n \`${fullData}\``, { parse_mode: 'Markdown' });
 
-  // Aquí iría la lógica de cada gateway (Axios + Proxies)
-  // Por ahora simulamos la estructura
   setTimeout(async () => {
     try {
-        // Ejemplo de cómo se usaría un proxy:
-        // const proxy = getRandomProxy();
-        // const response = await axios.get('GATEWAY_URL', { proxy: ... });
-        
-        const isLive = Math.random() > 0.5; // Simulación
-        let result = `💳 *Card:* \`${fullData}\`\n`;
-        result += `📡 *Gateway:* ${gatewayName.toUpperCase()}\n`;
+        const isLive = Math.random() > 0.5;
+        let result = `#Bot VIP Alex ⚡ | ${gatewayName.toUpperCase()}\n`;
+        result += `${SEPARATOR}\n`;
+        result += `💳 *Card:* \`${fullData}\`\n`;
         result += `✨ *Status:* ${isLive ? '✅ LIVE' : '❌ DEAD'}\n`;
-        result += `💬 *Response:* ${isLive ? 'Approved' : 'Declined (Insufficient Funds)'}\n`;
-        result += `★───────────✩───────────★\n`;
-        result += `👤 *Check by:* ${ctx.from.first_name}`;
+        result += `💬 *Response:* ${isLive ? 'Approved' : 'Insuficient Funds'}\n`;
+        
+        result += await getSignature(ctx);
 
-        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, result, { parse_mode: 'Markdown' });
+        await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, result, { 
+            parse_mode: 'Markdown',
+            ...Markup.inlineKeyboard([
+                [Markup.button.url('!! Updates', `https://t.me/${OWNER_HANDLE.replace('@', '')}`)]
+            ])
+        });
     } catch(e) {
         await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, '❌ Error al conectar con el Gateway.', { parse_mode: 'Markdown' });
     }
@@ -514,6 +604,7 @@ const handleGateway = async (ctx, gatewayName) => {
 
 bot.hears(/^\$st (.+)$/, (ctx) => handleGateway(ctx, 'stripe'));
 bot.hears(/^\$am (.+)$/, (ctx) => handleGateway(ctx, 'amazon'));
+bot.hears(/^\$bt (.+)$/, (ctx) => handleGateway(ctx, 'braintree'));
 
 // ARRANCAR BOT
 bot.launch().then(() => {
