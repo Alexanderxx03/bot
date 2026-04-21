@@ -124,6 +124,126 @@ bot.command('addzeller', async (ctx) => {
   }
 });
 
+// --- UTILIDADES MATEMÁTICAS (ALGORITMO DE LUHN) ---
+function generateLuhn(bin, length = 16) {
+  let ccNumber = bin;
+  
+  // Rellenamos con números aleatorios hasta longitud-1
+  while (ccNumber.length < length - 1) {
+    ccNumber += Math.floor(Math.random() * 10).toString();
+  }
+
+  // Calculamos el dígito verificador (Luhn)
+  let sum = 0;
+  for (let i = 0; i < ccNumber.length; i++) {
+    let digit = parseInt(ccNumber[ccNumber.length - 1 - i]);
+    if (i % 2 === 0) {
+      digit *= 2;
+      if (digit > 9) digit -= 9;
+    }
+    sum += digit;
+  }
+  
+  let checkDigit = (10 - (sum % 10)) % 10;
+  return ccNumber + checkDigit;
+}
+
+// --- COMANDO /gen (GENERADOR VIP) ---
+bot.command('gen', async (ctx) => {
+  const userId = ctx.from.id.toString();
+  const args = ctx.message.text.split(' ');
+
+  if (args.length < 2) {
+    return ctx.reply('⚠️ *Uso:* `/gen 447227`', { parse_mode: 'Markdown' });
+  }
+
+  const bin = args[1].replace(/\D/g, '').substring(0, 6);
+  const quantity = Math.min(parseInt(args[2]) || 10, 20); // Máximo 20 por vez
+
+  try {
+    const userDoc = await getDoc(doc(db, 'users_tg', userId));
+    const userData = userDoc.data();
+
+    if (ctx.from.id !== ADMIN_ID && (!userData || userData.role !== 'premium')) {
+      return ctx.reply('🛑 *ACCESO DENEGADO*\n\nEsta herramienta es exclusiva para miembros del *Curso ELITE MASTER VIP*.', { parse_mode: 'Markdown' });
+    }
+
+    const msg = await ctx.reply('🎰 *Generando números válidos...*', { parse_mode: 'Markdown' });
+
+    // Consulta de Info del BIN para el pie de mensaje
+    let binInfo = { scheme: 'N/A', type: 'N/A', bank: 'N/A', country: 'N/A' };
+    try {
+      const response = await axios.get(`https://data.handyapi.com/bin/${bin}`);
+      if (response.data.Status === 'SUCCESS') {
+        binInfo = {
+          scheme: response.data.Scheme,
+          type: response.data.Type,
+          bank: response.data.Issuer,
+          country: `${response.data.Country.Name} ${response.data.Country.Code || ''}`
+        };
+      }
+    } catch (e) { console.log('Error bin info en gen:', e.message); }
+
+    // Generación de la lista
+    let lista = `〈 ⚡ 〉 *Bin* -> \`${bin}xxxxxxxxxxxx\`\n`;
+    lista += `★───────────✩───────────★\n`;
+
+    for (let i = 0; i < quantity; i++) {
+      const cc = generateLuhn(bin);
+      const mm = Math.floor(Math.random() * 12 + 1).toString().padStart(2, '0');
+      const yy = Math.floor(Math.random() * (2031 - 2025) + 2025);
+      const cvv = Math.floor(Math.random() * 899 + 100);
+      lista += `\`${cc}|${mm}|${yy}|${cvv}\`\n`;
+    }
+
+    lista += `★───────────✩───────────★\n`;
+    lista += `〈 💎 〉 *Info* -> ${binInfo.scheme} - ${binInfo.type}\n`;
+    lista += `〈 🏦 〉 *Bank* -> ${binInfo.bank}\n`;
+    lista += `〈 🗺️ 〉 *Country* -> ${binInfo.country}\n`;
+    lista += `★───────────✩───────────★\n`;
+    lista += `〈 👤 〉 *Gen by* -> ${ctx.from.first_name}\n`;
+
+    await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, lista, { 
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback('🔄 Re-Gen', `REGEN_${bin}_${quantity}`)]
+      ])
+    });
+
+  } catch (e) {
+    console.error('Error en /gen:', e);
+    ctx.reply('❌ Error al generar números.');
+  }
+});
+
+// Acción de Re-Generar
+bot.action(/^REGEN_(.+)_(.+)$/, async (ctx) => {
+  const bin = ctx.match[1];
+  const quantity = parseInt(ctx.match[2]);
+  
+  // Re-ejecutar la lógica de generación (simplificada para el edit)
+  let lista = `〈 ⚡ 〉 *Bin* -> \`${bin}xxxxxxxxxxxx\`\n`;
+  lista += `★───────────✩───────────★\n`;
+  for (let i = 0; i < quantity; i++) {
+    const cc = generateLuhn(bin);
+    const mm = Math.floor(Math.random() * 12 + 1).toString().padStart(2, '0');
+    const yy = Math.floor(Math.random() * (2031 - 2025) + 2025);
+    const cvv = Math.floor(Math.random() * 899 + 100);
+    lista += `\`${cc}|${mm}|${yy}|${cvv}\`\n`;
+  }
+  lista += `★───────────✩───────────★\n`;
+  lista += `*🔄 Re-generado*\n`;
+
+  try {
+    await ctx.editMessageText(lista, {
+      parse_mode: 'Markdown',
+      ...Markup.inlineKeyboard([
+        [Markup.button.callback('🔄 Re-Gen', `REGEN_${bin}_${quantity}`)]
+      ])
+    });
+  } catch(e) {}
+});
+
 // --- COMANDO /bin (EXCLUSIVO) ---
 bot.command('bin', async (ctx) => {
   const userId = ctx.from.id.toString();
