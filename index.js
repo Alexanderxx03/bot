@@ -263,13 +263,14 @@ const handleGen = async (ctx) => {
     try {
       const response = await axios.get(`https://data.handyapi.com/bin/${bin}`);
       if (response.data.Status === 'SUCCESS') {
+        const c = response.data.Country;
         binInfo = {
           scheme: response.data.Scheme,
           type: response.data.Type,
           tier: response.data.CardTier,
           bank: response.data.Issuer,
-          country: response.data.Country.Name,
-          flag: response.data.Country.Code
+          country: c.Name,
+          flag: c.A2 || c.Code
         };
       }
     } catch (e) {}
@@ -384,7 +385,7 @@ const handleBin = async (ctx) => {
     result += `➤ *Type:* ${data.Type || 'N/A'}\n`;
     result += `➤ *Level:* ${data.CardTier || 'N/A'}\n`;
     result += `➤ *Bank:* ${data.Issuer || 'N/A'}\n`;
-    result += `➤ *Country:* ${data.Country.Name} ${getFlagEmoji(data.Country.Code)}\n`;
+    result += `➤ *Country:* ${data.Country.Name} ${getFlagEmoji(data.Country.A2 || data.Country.Code)}\n`;
     result += `➤ *Currency:* ${data.Currency || 'N/A'}\n`;
     
     result += await getSignature(ctx);
@@ -587,8 +588,12 @@ bot.action('GATES_AUTH', async (ctx) => {
 });
 
 bot.action('GATES_CHARGE', async (ctx) => {
-    const mensaje = `#Bot VIP Alex ⚡ | CHARGE GATEWAYS\n${SEPARATOR}\n` +
-      `Próximamente...`;
+    const mensaje = `#Bot VIP Alex ⚡ | CHARGE GATEWAYS 🧲\n${SEPARATOR}\n` +
+      `➡️ *Payflow $23*: ON✅\n   Rank: Premium | /pa\n` +
+      `➡️ *Braintree $10*: ON✅\n   Rank: Premium | /bv\n` +
+      `➡️ *CardConnect $5*: ON✅\n   Rank: VIP | /cn\n` +
+      `➡️ *Stripe $1*: ON✅\n   Rank: VIP | /s1\n\n` +
+      `*Uso:* \`/pa CC|MM|YY|CVV\``;
     
     ctx.editMessageText(mensaje, {
       parse_mode: 'Markdown',
@@ -602,8 +607,12 @@ const handleGateway = async (ctx, gatewayName) => {
     return ctx.reply('🛑 Los Gateways son exclusivos para miembros PREMIUM.');
   }
 
-  const args = ctx.message.text.split(' ');
-  if (args.length < 2) return ctx.reply(`⚠️ *Uso:* \`$${gatewayName} CC|MM|YY|CVV\``, { parse_mode: 'Markdown' });
+  const text = ctx.message.text;
+  const args = text.split(' ');
+  const prefix = text.startsWith('.') ? '.' : (text.startsWith('/') ? '/' : (text.startsWith('$') ? '$' : ''));
+  const cmd = text.split(' ')[0].replace(prefix, '');
+
+  if (args.length < 2) return ctx.reply(`⚠️ *Uso:* \`${prefix}${cmd} CC|MM|YY|CVV\``, { parse_mode: 'Markdown' });
 
   const fullData = args[1];
   const msg = await ctx.reply(`⏳ *Checking on ${gatewayName.toUpperCase()}...*\n \`${fullData}\``, { parse_mode: 'Markdown' });
@@ -638,6 +647,12 @@ bot.hears(/^\$sq (.+)$/, (ctx) => handleGateway(ctx, 'square'));
 bot.hears(/^\$pp (.+)$/, (ctx) => handleGateway(ctx, 'paypal'));
 bot.hears(/^\$ad (.+)$/, (ctx) => handleGateway(ctx, 'adyen'));
 bot.hears(/^\$au (.+)$/, (ctx) => handleGateway(ctx, 'authorize'));
+
+// Comandos de Cargo
+bot.hears(/^\/pa (.+)$/, (ctx) => handleGateway(ctx, 'payflow $23'));
+bot.hears(/^\/bv (.+)$/, (ctx) => handleGateway(ctx, 'braintree $10'));
+bot.hears(/^\/cn (.+)$/, (ctx) => handleGateway(ctx, 'cardconnect $5'));
+bot.hears(/^\/s1 (.+)$/, (ctx) => handleGateway(ctx, 'stripe $1'));
 
 // --- COMANDO MASS CHECKER (.mchk) ---
 const handleMassChk = async (ctx) => {
