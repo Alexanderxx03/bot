@@ -465,7 +465,15 @@ bot.action('VOLVER_INICIO', (ctx) => {
 // --- FUNCIONES AUXILIARES ---
 
 async function mostrarPlan(ctx, edit = false) {
-  const mensaje = `${CURSO_ELITE.title}\n\n✅ *PRECIOS DEL CURSO PERMANENTE*\n\n💲 *${CURSO_ELITE.priceUSD}*\n💰 *${CURSO_ELITE.priceMXN}*\n\n🔗 *QUE INCLUYE* 🔗\n\n${CURSO_ELITE.includes.join('\n')}\n\n${CURSO_ELITE.footer}`;
+  const photoPath = 'assets/plan.png';
+  const mensaje = `💡 *Necesitas Un Bot Rápido y Efectivo, y Que Además Tenga Muchísimas Actualizaciones Por Delante?*\n\n` +
+    `🥇 *Te Presentamos Bot VIP Alex, Que Cumple Todo Eso y Mucho Más!*\n` +
+    `═══════════════════\n` +
+    `⚡️ *Poseemos Más de 50 Gateways Funcionales, Todos Con Rápidas Velocidades De Chequeo, De Los Cuales Algunos Son:*\n` +
+    `_Braintree Auth y Charged, Stripe Auth y Charged, Zuora + Chase Auth, Payflow Auth CCN y Charged CVV-CCN, Amazon US, IT, MX, CA_\n\n` +
+    `Tambien Incluimos *GenCookies*, Para El Facil Uso de Nuestro Gate Amazon\n\n` +
+    `✅ *PRECIOS DEL CURSO PERMANENTE*\n` +
+    `💲 *${CURSO_ELITE.priceUSD}* | 💰 *${CURSO_ELITE.priceMXN}*`;
   
   const extra = {
     parse_mode: 'Markdown',
@@ -477,10 +485,14 @@ async function mostrarPlan(ctx, edit = false) {
 
   if (edit) {
     try {
-      await ctx.editMessageText(mensaje, extra);
-    } catch(e) { ctx.reply(mensaje, extra); }
+      // Si es edición, no podemos cambiar texto por foto fácilmente, así que enviamos nuevo
+      await ctx.deleteMessage();
+      await ctx.replyWithPhoto({ source: photoPath }, { caption: mensaje, ...extra });
+    } catch(e) { 
+      ctx.replyWithPhoto({ source: photoPath }, { caption: mensaje, ...extra });
+    }
   } else {
-    ctx.reply(mensaje, extra);
+    ctx.replyWithPhoto({ source: photoPath }, { caption: mensaje, ...extra });
   }
 }
 
@@ -576,9 +588,12 @@ bot.action('VER_GATES', (ctx) => mostrarGateways(ctx, true));
 bot.action('GATES_AUTH', async (ctx) => {
   const mensaje = `#Bot VIP Alex ⚡ | AUTH GATEWAYS\n${SEPARATOR}\n` +
     `$st - Stripe Auth\n` +
-    `$am - Amazon Pay\n` +
+    `$am - Amazon Pay (US/MX/IT/CA)\n` +
     `$bt - Braintree Auth\n` +
     `$sq - Square Auth\n` +
+    `$zu - Zuora Auth\n` +
+    `$ch - Chase Auth\n` +
+    `$pf - Payflow CCN\n` +
     `$pp - Paypal Auth\n` +
     `$ad - Adyen Auth\n` +
     `$au - Authorize.net\n\n` +
@@ -650,6 +665,9 @@ bot.hears(/^\$sq (.+)$/, (ctx) => handleGateway(ctx, 'square'));
 bot.hears(/^\$pp (.+)$/, (ctx) => handleGateway(ctx, 'paypal'));
 bot.hears(/^\$ad (.+)$/, (ctx) => handleGateway(ctx, 'adyen'));
 bot.hears(/^\$au (.+)$/, (ctx) => handleGateway(ctx, 'authorize'));
+bot.hears(/^\$zu (.+)$/, (ctx) => handleGateway(ctx, 'zuora'));
+bot.hears(/^\$ch (.+)$/, (ctx) => handleGateway(ctx, 'chase'));
+bot.hears(/^\$pf (.+)$/, (ctx) => handleGateway(ctx, 'payflow ccn'));
 
 // Comandos de Cargo
 bot.hears(/^\/pa (.+)$/, (ctx) => handleGateway(ctx, 'payflow $23'));
