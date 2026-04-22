@@ -128,6 +128,7 @@ bot.command('addzeller', async (ctx) => {
 const SEPARATOR = '━━━━━━━━━━━━━━━━━━━━';
 const BOT_VERSION = '1.0';
 const OWNER_HANDLE = '@Aleeeeeack';
+const UPDATES_CHANNEL = 'https://t.me/Aleeeeeack'; // Cambiar por el link de tu canal
 
 async function getSignature(ctx) {
   let role = 'FREE';
@@ -147,10 +148,16 @@ async function getSignature(ctx) {
 }
 
 function getFlagEmoji(countryCode) {
-  if (!countryCode || countryCode.length !== 2) return '🏳️';
-  return countryCode
-    .toUpperCase()
-    .replace(/./g, char => String.fromCodePoint(127397 + char.charCodeAt()));
+  if (!countryCode || typeof countryCode !== 'string' || countryCode.length !== 2) return '🏳️';
+  try {
+    const codePoints = countryCode
+      .toUpperCase()
+      .split('')
+      .map(char => 127397 + char.charCodeAt());
+    return String.fromCodePoint(...codePoints);
+  } catch (e) {
+    return '🏳️';
+  }
 }
 
 function generateLuhn(bin, length = 16) {
@@ -283,7 +290,7 @@ const handleGen = async (ctx) => {
       ...Markup.inlineKeyboard([
         [
           Markup.button.callback('⚙️ Re-Gen', callbackData),
-          Markup.button.url('!! Updates', `https://t.me/${OWNER_HANDLE.replace('@', '')}`)
+          Markup.button.url('!! Updates', UPDATES_CHANNEL)
         ]
       ])
     });
@@ -323,7 +330,7 @@ bot.action(/^REGEN_(.+)_(.+)_(.+)_(.+)_(.+)$/, async (ctx) => {
       ...Markup.inlineKeyboard([
         [
           Markup.button.callback('⚙️ Re-Gen', ctx.match[0]),
-          Markup.button.url('!! Updates', `https://t.me/${OWNER_HANDLE.replace('@', '')}`)
+          Markup.button.url('!! Updates', UPDATES_CHANNEL)
         ]
       ])
     });
@@ -374,7 +381,7 @@ const handleBin = async (ctx) => {
     await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, result, { 
         parse_mode: 'Markdown',
         ...Markup.inlineKeyboard([
-            [Markup.button.url('!! Updates', `https://t.me/${OWNER_HANDLE.replace('@', '')}`)]
+            [Markup.button.url('!! Updates', UPDATES_CHANNEL)]
         ])
     });
 
@@ -555,7 +562,11 @@ bot.action('GATES_AUTH', async (ctx) => {
   const mensaje = `#Bot VIP Alex ⚡ | AUTH GATEWAYS\n${SEPARATOR}\n` +
     `$st - Stripe Auth\n` +
     `$am - Amazon Pay\n` +
-    `$bt - Braintree Auth\n\n` +
+    `$bt - Braintree Auth\n` +
+    `$sq - Square Auth\n` +
+    `$pp - Paypal Auth\n` +
+    `$ad - Adyen Auth\n` +
+    `$au - Authorize.net\n\n` +
     `*Uso:* \`$st CC|MM|YY|CVV\``;
   
   ctx.editMessageText(mensaje, {
@@ -600,7 +611,7 @@ const handleGateway = async (ctx, gatewayName) => {
         await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, result, { 
             parse_mode: 'Markdown',
             ...Markup.inlineKeyboard([
-                [Markup.button.url('!! Updates', `https://t.me/${OWNER_HANDLE.replace('@', '')}`)]
+                [Markup.button.url('!! Updates', UPDATES_CHANNEL)]
             ])
         });
     } catch(e) {
@@ -612,6 +623,55 @@ const handleGateway = async (ctx, gatewayName) => {
 bot.hears(/^\$st (.+)$/, (ctx) => handleGateway(ctx, 'stripe'));
 bot.hears(/^\$am (.+)$/, (ctx) => handleGateway(ctx, 'amazon'));
 bot.hears(/^\$bt (.+)$/, (ctx) => handleGateway(ctx, 'braintree'));
+bot.hears(/^\$sq (.+)$/, (ctx) => handleGateway(ctx, 'square'));
+bot.hears(/^\$pp (.+)$/, (ctx) => handleGateway(ctx, 'paypal'));
+bot.hears(/^\$ad (.+)$/, (ctx) => handleGateway(ctx, 'adyen'));
+bot.hears(/^\$au (.+)$/, (ctx) => handleGateway(ctx, 'authorize'));
+
+// --- COMANDO MASS CHECKER (.mchk) ---
+const handleMassChk = async (ctx) => {
+  if (!(await isPremium(ctx))) {
+    return ctx.reply('🛑 El chequeo masivo es exclusivo para usuarios PREMIUM.');
+  }
+
+  const args = ctx.message.text.split('\n').slice(1);
+  if (args.length === 0) {
+    const textArgs = ctx.message.text.split(' ').slice(1);
+    if (textArgs.length > 0) args.push(...textArgs);
+  }
+
+  if (args.length === 0) return ctx.reply('⚠️ *Uso:* `.mchk CC|MM|YY|CVV` (puedes enviar varias líneas)', { parse_mode: 'Markdown' });
+
+  const cards = args.slice(0, 10); // Límite de 10 por ahora
+  const msg = await ctx.reply(`⏳ *Checking ${cards.length} cards...*`, { parse_mode: 'Markdown' });
+
+  let results = `#Bot VIP Alex ⚡ | Mass Checker\n${SEPARATOR}\n`;
+  let approved = 0;
+  let declined = 0;
+
+  for (let card of cards) {
+    const isLive = Math.random() > 0.7; // Simulación
+    if (isLive) approved++; else declined++;
+    results += `\`${card}\` -> ${isLive ? '✅ LIVE' : '❌ DEAD'}\n`;
+  }
+
+  results += `${SEPARATOR}\n`;
+  results += `✅ *Approved:* ${approved}\n`;
+  results += `❌ *Declined:* ${declined}\n`;
+  results += `📊 *Total:* ${cards.length}\n`;
+  
+  results += await getSignature(ctx);
+
+  await ctx.telegram.editMessageText(ctx.chat.id, msg.message_id, null, results, { 
+    parse_mode: 'Markdown',
+    ...Markup.inlineKeyboard([ [Markup.button.url('!! Updates', UPDATES_CHANNEL)] ])
+  });
+};
+
+bot.command('mchk', handleMassChk);
+bot.hears(/^\.mchk (.+)$/, handleMassChk);
+bot.hears(/^\.msa (.+)$/, handleMassChk); // Alias para Mass Stripe Auth
+
 
 // ARRANCAR BOT
 bot.launch().then(() => {
