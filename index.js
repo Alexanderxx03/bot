@@ -148,12 +148,23 @@ async function getSignature(ctx) {
 }
 
 function getFlagEmoji(countryCode) {
-  if (!countryCode || typeof countryCode !== 'string' || countryCode.length !== 2) return '🏳️';
+  if (!countryCode || typeof countryCode !== 'string') return '🏳️';
+  
+  // Mapa de respaldo para países comunes
+  const fallbacks = {
+    'US': '🇺🇸', 'MX': '🇲🇽', 'HN': '🇭🇳', 'CL': '🇨🇱', 'AR': '🇦🇷', 
+    'CO': '🇨🇴', 'PE': '🇵🇪', 'ES': '🇪🇸', 'BR': '🇧🇷', 'UY': '🇺🇾'
+  };
+
+  const code = countryCode.toUpperCase().trim();
+  if (fallbacks[code]) return fallbacks[code];
+
+  if (code.length !== 2) return '🏳️';
+
   try {
-    const codePoints = countryCode
-      .toUpperCase()
+    const codePoints = code
       .split('')
-      .map(char => 127397 + char.charCodeAt());
+      .map(char => 127397 + char.charCodeAt(0));
     return String.fromCodePoint(...codePoints);
   } catch (e) {
     return '🏳️';
@@ -248,7 +259,7 @@ const handleGen = async (ctx) => {
 
     const msg = await ctx.reply('🔍 *Generando...*', { parse_mode: 'Markdown' });
 
-    let binInfo = { scheme: 'N/A', type: 'N/A', bank: 'N/A', country: 'N/A', flag: '🏳️' };
+    let binInfo = { scheme: 'N/A', type: 'N/A', bank: 'N/A', country: 'N/A', flag: null };
     try {
       const response = await axios.get(`https://data.handyapi.com/bin/${bin}`);
       if (response.data.Status === 'SUCCESS') {
@@ -258,7 +269,7 @@ const handleGen = async (ctx) => {
           tier: response.data.CardTier,
           bank: response.data.Issuer,
           country: response.data.Country.Name,
-          flag: response.data.Country.Code || '🏳️'
+          flag: response.data.Country.Code
         };
       }
     } catch (e) {}
