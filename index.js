@@ -147,10 +147,13 @@ async function getSignature(ctx) {
   return footer;
 }
 
-function getFlagEmoji(countryCode) {
+function getFlagEmoji(countryCode, countryName = '') {
+  if (countryName.toUpperCase().includes('UNITED STATES')) return '🇺🇸';
+  if (countryName.toUpperCase().includes('MEXICO')) return '🇲🇽';
+  if (countryName.toUpperCase().includes('HONDURAS')) return '🇭🇳';
+
   if (!countryCode || typeof countryCode !== 'string') return '🏳️';
   
-  // Mapa de respaldo para países comunes
   const fallbacks = {
     'US': '🇺🇸', 'MX': '🇲🇽', 'HN': '🇭🇳', 'CL': '🇨🇱', 'AR': '🇦🇷', 
     'CO': '🇨🇴', 'PE': '🇵🇪', 'ES': '🇪🇸', 'BR': '🇧🇷', 'UY': '🇺🇾'
@@ -291,7 +294,7 @@ const handleGen = async (ctx) => {
     lista += `${SEPARATOR}\n`;
     lista += `➤ *Info:* ${binInfo.scheme} - ${binInfo.type} - ${binInfo.tier || 'N/A'}\n`;
     lista += `➤ *Issuer:* ${binInfo.bank}\n`;
-    lista += `➤ *Country:* ${binInfo.country} ${getFlagEmoji(binInfo.flag)}\n`;
+    lista += `➤ *Country:* ${binInfo.country} ${getFlagEmoji(binInfo.flag, binInfo.country)}\n`;
     
     lista += await getSignature(ctx);
 
@@ -385,7 +388,7 @@ const handleBin = async (ctx) => {
     result += `➤ *Type:* ${data.Type || 'N/A'}\n`;
     result += `➤ *Level:* ${data.CardTier || 'N/A'}\n`;
     result += `➤ *Bank:* ${data.Issuer || 'N/A'}\n`;
-    result += `➤ *Country:* ${data.Country.Name} ${getFlagEmoji(data.Country.A2 || data.Country.Code)}\n`;
+    result += `➤ *Country:* ${data.Country.Name} ${getFlagEmoji(data.Country.A2 || data.Country.Code, data.Country.Name)}\n`;
     result += `➤ *Currency:* ${data.Currency || 'N/A'}\n`;
     
     result += await getSignature(ctx);
