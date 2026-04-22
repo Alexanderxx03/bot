@@ -698,8 +698,9 @@ const handleMassChk = async (ctx) => {
 };
 
 bot.command('mchk', handleMassChk);
-bot.hears(/^\.mchk (.+)$/, handleMassChk);
-bot.hears(/^\.msa (.+)$/, handleMassChk); // Alias para Mass Stripe Auth
+bot.command('mchk', handleMassChk);
+bot.hears(/^\.mchk ([\s\S]+)$/, handleMassChk);
+bot.hears(/^\.msa ([\s\S]+)$/, handleMassChk); // Alias para Mass Stripe Auth
 
 
 // ARRANCAR BOT
